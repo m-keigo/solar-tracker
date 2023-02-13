@@ -1,0 +1,110 @@
+#include <Stepper.h>
+
+// ステッピングモーターが1回転するのに必要なステップ数（2相励磁方式）
+const int MOTOR_STEPS = 2048;
+
+// 1回転当たりのステップ数と接続するピンの設定（ステッパークラスのインスタンスを生成）
+Stepper myStepper(MOTOR_STEPS,8,10,9,11);
+
+void setup() {
+  myStepper.setSpeed(10); // 1分あたり10回転
+  Serial.begin(9600); // PCとarduino間でデータをやりとりするシリアル通信を設定
+}
+
+void loop() {
+  int total = 6; // データの総数
+  float powArray[total];
+  float maxPower = 0.0000000000001;
+  int maxAngle;
+  int ii;
+
+  for(int ii=1; ii<=total; ii++){
+    myStepper.step(170.6); // 170.6ステップで30度回転(2048*30/360)
+
+    // 静止時には電流を遮断する
+    digitalWrite(8, LOW);
+    digitalWrite(9, LOW);
+    digitalWrite(10, LOW);
+    digitalWrite(11, LOW);
+
+    delay(1000);
+
+    Serial.print(30*ii);
+    Serial.print("度　");
+
+    // 電圧
+    float value;
+    value = analogRead(A0); // A0の値を読み取る
+    value = value * 5 / 1024; // アナログをデジタルに変換
+    //Serial.print(value, 5); // シリアルモニタに表示
+    //Serial.print("V ");
+
+    // 電流
+    float current;
+    current = value / 100; // 100Ωの抵抗を用いた
+    //Serial.print(current, 5);
+    //Serial.print("A ");
+
+    // 出力
+    float power;
+    power = value * current;
+    power = power * 1000,000;
+    Serial.print(power, 5);
+    Serial.println("μJ");
+
+    powArray[ii-1] = power;
+    //Serial.println(powArray[ii-1]);
+
+    if(powArray[ii-1] > maxPower){
+      maxPower = powArray[ii-1];
+      maxAngle = ii;
+    }
+
+    // delay(1000); // 1000m秒待つ
+  }
+
+  Serial.print("最大出力は");
+  Serial.print(maxPower, 5);
+  Serial.println("μJ");
+  Serial.print("そのときの角度は");
+  Serial.print(maxAngle * 30);
+  Serial.println("度");
+
+  reset_angle();
+
+  // 最大出力を取る角度まで移動
+  myStepper.step(170.6 * maxAngle);
+
+    // 静止時には電流を遮断する
+    digitalWrite(8, LOW);
+    digitalWrite(9, LOW);
+    digitalWrite(10, LOW);
+    digitalWrite(11, LOW);
+
+
+  delay(10000);
+
+  myStepper.step(-170.6 * maxAngle); // 元の位置に戻る
+}
+
+void reset_angle(){
+  myStepper.step(-1024); // 180度回転(逆回転)
+  //静止時には電流を遮断する
+  digitalWrite(8, LOW);
+  digitalWrite(9, LOW);
+  digitalWrite(10, LOW);
+  digitalWrite(11, LOW);
+
+  delay(500); // 500m秒待つ
+}
+
+/*
+void vol(){
+  float value;
+  value = analogRead(A0); // A0の値を読み取る
+  value = value * 5.0 / 1024.0; // アナログをデジタルに変換
+  Serial.print(value); // シリアルモニタに表示
+  Serial.println("V");
+}
+*/
+
